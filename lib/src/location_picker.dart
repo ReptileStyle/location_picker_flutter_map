@@ -230,6 +230,8 @@ class FlutterLocationPicker extends StatefulWidget {
   ///
   final double? contributorBadgeForOSMPositionBottom;
 
+  final Widget? widgetAboveSelectButton;
+
   const FlutterLocationPicker({
     super.key,
     required this.onPicked,
@@ -285,6 +287,7 @@ class FlutterLocationPicker extends StatefulWidget {
     this.contributorBadgeForOSMPositionBottom = -6,
     Widget? loadingWidget,
     this.selectLocationButtonLeadingIcon,
+    this.widgetAboveSelectButton
   }) : loadingWidget = loadingWidget ?? const CircularProgressIndicator();
 
   @override
@@ -834,6 +837,8 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
                   ),
                 ),
               ],
+              if (widget.widgetAboveSelectButton != null)
+                widget.widgetAboveSelectButton!,
               if (widget.showSelectLocationButton) _buildSelectButton(),
             ],
           ),
