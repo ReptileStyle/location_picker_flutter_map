@@ -230,7 +230,7 @@ class FlutterLocationPicker extends StatefulWidget {
   ///
   final double? contributorBadgeForOSMPositionBottom;
 
-  final Widget? widgetAboveSelectButton;
+  final Widget Function(BuildContext context, void Function() zoomIn,void Function() zoomOut, void Function() selectLocation, void Function() setCurrentLocation)? overlayBuilder;
 
   const FlutterLocationPicker({
     super.key,
@@ -287,7 +287,7 @@ class FlutterLocationPicker extends StatefulWidget {
     this.contributorBadgeForOSMPositionBottom = -6,
     Widget? loadingWidget,
     this.selectLocationButtonLeadingIcon,
-    this.widgetAboveSelectButton
+    this.overlayBuilder
   }) : loadingWidget = loadingWidget ?? const CircularProgressIndicator();
 
   @override
@@ -659,6 +659,27 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
     );
   }
 
+  void zoomIn() {
+    _animatedMapMove(_mapController.camera.center,
+        _mapController.camera.zoom + widget.stepZoom);
+  }
+
+  void zoomOut() {
+    _animatedMapMove(_mapController.camera.center,
+        _mapController.camera.zoom - widget.stepZoom);
+  }
+
+  Future<void> setCurrentLocation() async {
+    await _determinePosition().then(
+          (currentPosition) {
+        LatLong center = LatLong(
+            currentPosition.latitude, currentPosition.longitude);
+        _animatedMapMove(center.toLatLng(), 18);
+        onLocationChanged(center);
+      },
+    );
+  }
+
   Widget _buildControllerButtons() {
     return PositionedDirectional(
       bottom: 72,
@@ -670,10 +691,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
               heroTag: "btn1",
               shape: const CircleBorder(),
               backgroundColor: widget.zoomButtonsBackgroundColor,
-              onPressed: () {
-                _animatedMapMove(_mapController.camera.center,
-                    _mapController.camera.zoom + widget.stepZoom);
-              },
+              onPressed: zoomIn,
               child: Icon(
                 Icons.zoom_in,
                 color: widget.zoomButtonsColor,
@@ -685,10 +703,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
               heroTag: "btn2",
               shape: const CircleBorder(),
               backgroundColor: widget.zoomButtonsBackgroundColor,
-              onPressed: () {
-                _animatedMapMove(_mapController.camera.center,
-                    _mapController.camera.zoom - widget.stepZoom);
-              },
+              onPressed: zoomOut,
               child: Icon(
                 Icons.zoom_out,
                 color: widget.zoomButtonsColor,
@@ -699,19 +714,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
             FloatingActionButton(
               heroTag: "btn3",
               backgroundColor: widget.locationButtonBackgroundColor,
-              onPressed: () async {
-                // setState(() {
-                //   isLoading = true;
-                // });
-                _determinePosition().then(
-                  (currentPosition) {
-                    LatLong center = LatLong(
-                        currentPosition.latitude, currentPosition.longitude);
-                    _animatedMapMove(center.toLatLng(), 18);
-                    onLocationChanged(center);
-                  },
-                );
-              },
+              onPressed: setCurrentLocation,
               child:
                   Icon(Icons.my_location, color: widget.locationButtonsColor),
             ),
@@ -774,6 +777,23 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
     );
   }
 
+  Future<void> onSelected() async {
+    setState(() {
+      isLoading = true;
+    });
+    LatLong center = LatLong(_mapController.camera.center.latitude,
+        _mapController.camera.center.longitude);
+    pickData(center).then((value) {
+      widget.onPicked(value);
+    }, onError: (e) => onError(e)).whenComplete(
+          () => setState(
+            () {
+          isLoading = false;
+        },
+      ),
+    );
+  }
+
   Widget _buildSelectButton() {
     return Positioned(
       top: widget.selectLocationButtonPositionTop,
@@ -786,22 +806,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
           child: WideButton(
             widget.selectLocationButtonText,
             leadingIcon: widget.selectLocationButtonLeadingIcon,
-            onPressed: () async {
-              setState(() {
-                isLoading = true;
-              });
-              LatLong center = LatLong(_mapController.camera.center.latitude,
-                  _mapController.camera.center.longitude);
-              pickData(center).then((value) {
-                widget.onPicked(value);
-              }, onError: (e) => onError(e)).whenComplete(
-                () => setState(
-                  () {
-                    isLoading = false;
-                  },
-                ),
-              );
-            },
+            onPressed: onSelected,
             style: widget.selectLocationButtonStyle,
             textStyle: widget.selectedLocationButtonTextstyle,
             width: widget.selectLocationButtonWidth,
@@ -837,8 +842,8 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
                   ),
                 ),
               ],
-              if (widget.widgetAboveSelectButton != null)
-                widget.widgetAboveSelectButton!,
+              if (widget.overlayBuilder != null)
+                widget.overlayBuilder!.call(context, zoomIn, zoomOut, onSelected, setCurrentLocation),
               if (widget.showSelectLocationButton) _buildSelectButton(),
             ],
           ),
