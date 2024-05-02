@@ -232,6 +232,12 @@ class FlutterLocationPicker extends StatefulWidget {
 
   final Widget Function(BuildContext context, void Function() zoomIn,void Function() zoomOut, void Function() selectLocation, void Function() setCurrentLocation)? overlayBuilder;
 
+  final MapController? mapController;
+
+  final Stream<double>? zoomStream;
+
+  final double zoomWhenSetCurrentLocation;
+
   const FlutterLocationPicker({
     super.key,
     required this.onPicked,
@@ -287,7 +293,10 @@ class FlutterLocationPicker extends StatefulWidget {
     this.contributorBadgeForOSMPositionBottom = -6,
     Widget? loadingWidget,
     this.selectLocationButtonLeadingIcon,
-    this.overlayBuilder
+    this.overlayBuilder,
+    this.mapController,
+    this.zoomStream,
+    this.zoomWhenSetCurrentLocation = 18
   }) : loadingWidget = loadingWidget ?? const CircularProgressIndicator();
 
   @override
@@ -297,7 +306,7 @@ class FlutterLocationPicker extends StatefulWidget {
 class _FlutterLocationPickerState extends State<FlutterLocationPicker>
     with TickerProviderStateMixin {
   /// Creating a new instance of the MapController class.
-  MapController _mapController = MapController();
+  late MapController _mapController; // = widget.mapController ?? MapController();
 
   // Create a animation controller that has a duration and a TickerProvider.
   late AnimationController _animationController;
@@ -308,6 +317,10 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
   Timer? _debounce;
   bool isLoading = true;
   late void Function(Exception e) onError;
+
+  double? currentZoomAnimationTarget;
+
+  StreamSubscription? zoomSub;
 
   /// It returns true if the text is RTL, false if it's LTR
   ///
@@ -401,7 +414,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
     });
 
     if (mounted) {
-      _animationController.forward();
+      _animationController.forward().then((value) => currentZoomAnimationTarget = null);
     }
   }
 
@@ -479,7 +492,8 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
 
   @override
   void initState() {
-    _mapController = MapController();
+    _mapController = widget.mapController ?? MapController();
+
     _animationController =
         AnimationController(duration: widget.mapAnimationDuration, vsync: this);
     onError = widget.onError ?? (e) => debugPrint(e.toString());
@@ -494,10 +508,10 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
             LatLong(currentPosition.latitude, currentPosition.longitude);
 
         onLocationChanged(initPosition);
-        _animatedMapMove(initPosition.toLatLng(), 18.0);
+        _animatedMapMove(initPosition.toLatLng(), widget.zoomWhenSetCurrentLocation);
       }, onError: (e) => onError(e)).whenComplete(
-        () => setState(
-          () {
+            () => setState(
+              () {
             isLoading = false;
           },
         ),
@@ -526,6 +540,10 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
       }
     });
 
+    zoomSub = widget.zoomStream?.listen((event) {
+      _animatedMapMove(_mapController.camera.center, event);
+    });
+
     super.initState();
   }
 
@@ -533,6 +551,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
   /// clean up resources
   @override
   void dispose() {
+    zoomSub?.cancel();
     _mapController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -552,8 +571,8 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
           ),
           onTap: () {
             LatLong center =
-                LatLong(_options[index].latitude, _options[index].longitude);
-            _animatedMapMove(center.toLatLng(), 18.0);
+            LatLong(_options[index].latitude, _options[index].longitude);
+            _animatedMapMove(center.toLatLng(), widget.zoomWhenSetCurrentLocation);
             onLocationChanged(center);
 
             _focusNode.unfocus();
@@ -660,13 +679,21 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
   }
 
   void zoomIn() {
-    _animatedMapMove(_mapController.camera.center,
-        _mapController.camera.zoom + widget.stepZoom);
+    if (currentZoomAnimationTarget != null && currentZoomAnimationTarget! < _mapController.camera.zoom) {
+      currentZoomAnimationTarget = null;
+    }
+    currentZoomAnimationTarget ??= _mapController.camera.zoom;
+    currentZoomAnimationTarget = currentZoomAnimationTarget! + widget.stepZoom;
+    _animatedMapMove(_mapController.camera.center, currentZoomAnimationTarget!);
   }
 
   void zoomOut() {
-    _animatedMapMove(_mapController.camera.center,
-        _mapController.camera.zoom - widget.stepZoom);
+    if (currentZoomAnimationTarget != null && currentZoomAnimationTarget! > _mapController.camera.zoom) {
+      currentZoomAnimationTarget = null;
+    }
+    currentZoomAnimationTarget ??= _mapController.camera.zoom;
+    currentZoomAnimationTarget = currentZoomAnimationTarget! -  widget.stepZoom;
+    _animatedMapMove(_mapController.camera.center, currentZoomAnimationTarget!);
   }
 
   Future<void> setCurrentLocation() async {
@@ -674,7 +701,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
           (currentPosition) {
         LatLong center = LatLong(
             currentPosition.latitude, currentPosition.longitude);
-        _animatedMapMove(center.toLatLng(), 18);
+        _animatedMapMove(center.toLatLng(), widget.zoomWhenSetCurrentLocation);
         onLocationChanged(center);
       },
     );
