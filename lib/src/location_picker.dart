@@ -16,7 +16,6 @@ import 'classes.dart';
 /// Principal widget to show Flutter map using osm api with pick up location marker and search bar.
 /// you can track you current location, search for a location and select it.
 /// navigate easily in the map to selecte location.
-
 class FlutterLocationPicker extends StatefulWidget {
   /// [onPicked] : (callback) is trigger when you clicked on select location,return current [PickedData] of the Marker
   ///
@@ -234,7 +233,7 @@ class FlutterLocationPicker extends StatefulWidget {
 
   final MapController? mapController;
 
-  final Stream<double>? zoomStream;
+  final Stream<MoveData>? moveStream;
 
   final double zoomWhenSetCurrentLocation;
 
@@ -295,7 +294,7 @@ class FlutterLocationPicker extends StatefulWidget {
     this.selectLocationButtonLeadingIcon,
     this.overlayBuilder,
     this.mapController,
-    this.zoomStream,
+    this.moveStream,
     this.zoomWhenSetCurrentLocation = 18
   }) : loadingWidget = loadingWidget ?? const CircularProgressIndicator();
 
@@ -540,8 +539,11 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
       }
     });
 
-    zoomSub = widget.zoomStream?.listen((event) {
-      _animatedMapMove(_mapController.camera.center, event);
+    zoomSub = widget.moveStream?.listen((event) {
+      _animatedMapMove(event.destLocation ?? _mapController.camera.center, event.destZoom ?? _mapController.camera.zoom);
+      if (event.destLocation != null) {
+        onLocationChanged(LatLong(event.destLocation!.latitude, event.destLocation!.longitude));
+      }
     });
 
     super.initState();

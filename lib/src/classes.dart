@@ -41,3 +41,10 @@ class PickedData {
 
   const PickedData(this.latLong, this.address, this.addressData);
 }
+
+class MoveData {
+  final LatLng? destLocation;
+  final double? destZoom;
+
+  MoveData({required this.destLocation, required this.destZoom});
+}
