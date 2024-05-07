@@ -43,7 +43,7 @@ class PickedData {
 }
 
 class MoveData {
-  final LatLng? destLocation;
+  final LatLong? destLocation;
   final double? destZoom;
 
   MoveData({required this.destLocation, required this.destZoom});

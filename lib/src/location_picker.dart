@@ -540,9 +540,9 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
     });
 
     zoomSub = widget.moveStream?.listen((event) {
-      _animatedMapMove(event.destLocation ?? _mapController.camera.center, event.destZoom ?? _mapController.camera.zoom);
+      _animatedMapMove(event.destLocation?.toLatLng() ?? _mapController.camera.center, event.destZoom ?? _mapController.camera.zoom);
       if (event.destLocation != null) {
-        onLocationChanged(LatLong(event.destLocation!.latitude, event.destLocation!.longitude));
+        onLocationChanged(event.destLocation!);
       }
     });
 
