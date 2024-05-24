@@ -313,7 +313,7 @@ class _FlutterLocationPickerState extends State<FlutterLocationPicker>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   List<OSMdata> _options = <OSMdata>[];
-  LatLong initPosition = const LatLong(30.0443879, 31.2357257);
+  LatLong initPosition = const LatLong(18.3437809, -66.7520079); // Самая крупная обсерватория
   Timer? _debounce;
   bool isLoading = true;
   late void Function(Exception e) onError;
